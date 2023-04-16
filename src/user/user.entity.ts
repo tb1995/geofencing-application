@@ -66,6 +66,13 @@ export class User {
   createdOn: Date;
 
   @Column({
+    name: 'role',
+    nullable: false,
+    default: 'consumer',
+  })
+  role: 'organization' | 'consumer';
+
+  @Column({
     name: 'is_verified',
     nullable: false,
     default: false,
