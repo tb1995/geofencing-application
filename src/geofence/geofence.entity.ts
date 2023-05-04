@@ -1,5 +1,9 @@
-import { User } from '@/user/user.entity';
+import { User } from '../user/user.entity';
+import { Expose } from 'class-transformer';
 import {
+  AfterInsert,
+  AfterRemove,
+  AfterUpdate,
   Column,
   Entity,
   Geometry,
@@ -7,7 +11,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
-@Entity()
+@Entity({ name: 'geofence' })
 export class Geofence {
   @PrimaryGeneratedColumn({
     type: 'bigint',
@@ -32,11 +36,18 @@ export class Geofence {
   geofence: Geometry;
 
   @Column({
+    name: 'is_active',
+    nullable: false,
+    default: true,
+  })
+  isActive: Boolean;
+
+  @Column({
     name: 'user_id',
   })
   userId: number;
 
   @ManyToOne((type) => User, (user) => user.geofence)
   user: User;
-  restaurant: Promise<User>;
+  // geofence: Promise<User>;
 }

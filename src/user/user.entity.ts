@@ -1,13 +1,16 @@
-import { Geofence } from '@/geofence/geofence.entity';
+import { Geofence } from '../geofence/geofence.entity';
+import { Event } from '../event/event.entity';
 import {
   AfterInsert,
   AfterRemove,
   AfterUpdate,
   Column,
   Entity,
+  ManyToMany,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 
 @Entity({ name: 'users' })
 export class User {
@@ -56,6 +59,7 @@ export class User {
     nullable: false,
     default: '',
   })
+  @Exclude()
   password: string;
 
   @Column({
@@ -89,6 +93,21 @@ export class User {
   @OneToMany((type) => Geofence, (geofence) => geofence.user)
   geofence: Geofence[];
 
+  @OneToMany((type) => Event, (event) => event.user)
+  event: Event[];
+
+  @ManyToMany(() => Event, (event) => event.collaborators, {
+    onDelete: 'CASCADE',
+    onUpdate: 'NO ACTION',
+  })
+  collaborating?: Event[];
+
+  @ManyToMany(() => Event, (event) => event.attendees, {
+    onDelete: 'CASCADE',
+    onUpdate: 'NO ACTION',
+  })
+  attending?: Event[];
+
   @Column({
     name: 'last_login_at',
     type: 'timestamp',
@@ -96,22 +115,4 @@ export class User {
     default: null,
   })
   public lastLoginAt: Date | null;
-
-  /**
-   * Hooks
-   */
-  @AfterInsert()
-  logInsert() {
-    console.log('Inserted User with ID: ', this.id);
-  }
-
-  @AfterUpdate()
-  logUpdate() {
-    console.log('Updated User with ID: ', this.id);
-  }
-
-  @AfterRemove()
-  logRemove() {
-    console.log('Removed User with ID ', this.id);
-  }
 }

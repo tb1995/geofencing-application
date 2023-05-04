@@ -3,6 +3,7 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
+  Logger,
 } from '@nestjs/common';
 
 import { Observable } from 'rxjs';
@@ -18,7 +19,10 @@ export function Serialize(dto: any) {
 }
 
 export class SerializeInterceptor implements NestInterceptor {
-  constructor(private dto: any) {}
+  logger: Logger;
+  constructor(private dto: any) {
+    this.logger = new Logger('Geofence Application Logger Initialized');
+  }
   intercept(context: ExecutionContext, handler: CallHandler): Observable<any> {
     /**
      *  Run something before a request is handled by the request handler
@@ -30,7 +34,7 @@ export class SerializeInterceptor implements NestInterceptor {
     return handler.handle().pipe(
       map((data: any) => {
         return plainToClass(this.dto, data, {
-          excludeExtraneousValues: true,
+          excludeExtraneousValues: false,
         });
       })
     );

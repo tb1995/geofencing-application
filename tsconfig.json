@@ -17,8 +17,8 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
-    "paths": { "@/*": ["./src/*"] },
+    // "paths": { "@/*": ["./src/*"] },
     "typeRoots": ["./node_modules/@types"],
-    "types": ["node"]
+    "types": ["node", "jest"]
   }
 }
