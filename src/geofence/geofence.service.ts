@@ -21,7 +21,7 @@ export class GeofenceService {
   private readonly geofenceRepo: Repository<Geofence>;
 
   async create(name: string, latLngs: Array<LatLng>, user: User) {
-    let polygon = this.convertToPolygon(latLngs);
+    let polygon = this.convertToWKTFormattedPolygon(latLngs);
     let geofenceId = await this.geofenceRepo
       .createQueryBuilder()
       .insert()
@@ -29,7 +29,7 @@ export class GeofenceService {
       .values([
         {
           name: name,
-          geofence: () => polygon, //
+          geofence: () => polygon,
           userId: user.id,
         },
       ])
@@ -40,6 +40,7 @@ export class GeofenceService {
         throw new Error(error);
       });
 
+    // extract geofenceId from result set
     //@ts-ignore
     geofenceId = geofenceId.raw[0]['geofence_id'];
     this.logger.log(`Geofence created with ID: ${geofenceId}`);
@@ -65,22 +66,25 @@ export class GeofenceService {
 
   async update(body: UpdateGeofenceDto, geofenceId: number, user: User) {
     let geofence = await this.findGeofenceById(geofenceId);
+    // forbid a user that isn't an owner of the geofence
     if (geofence.userId != user.id) {
       throw new ForbiddenException(
         'You are not authorized to perform this edit'
       );
     }
 
+    // if the geofence is being updated
     if (body.latLngs) {
-      let polygon = this.convertToPolygon(body.latLngs);
+      let polygon = this.convertToWKTFormattedPolygon(body.latLngs);
 
-      // necessary for object.assign to work, as latlngs doesn't exist on
+      // necessary clean up for object.assign to work, as latlngs doesn't exist on the geofence object
       delete body.latLngs;
 
       Object.assign(geofence, body);
 
       this.geofenceRepo.update(geofenceId, geofence);
 
+      // query builder if the geofence is being updated
       return this.geofenceRepo
         .createQueryBuilder()
         .update()
@@ -96,8 +100,8 @@ export class GeofenceService {
           this.logger.log(`Geofence was updated with ID ${geofenceId}`);
         });
     } else {
+      // update query without the geofence
       Object.assign(geofence, body);
-
       return this.geofenceRepo.update(geofenceId, geofence);
     }
   }
@@ -120,7 +124,7 @@ export class GeofenceService {
       });
   }
 
-  convertToPolygon(latlngs) {
+  convertToWKTFormattedPolygon(latlngs) {
     let polygon = `ST_GeomFromText('POLYGON((`;
 
     for (let i = 0; i < latlngs.length; i++) {

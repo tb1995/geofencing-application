@@ -15,7 +15,7 @@ import { User } from '../user/user.entity';
 import { UpdateEventDto } from './dtos/update-event.dto';
 import { UserService } from '../user/user.service';
 import { MailService } from '../mail/mail.service';
-import { eventGeofenceIntersection } from './eventGeofenceIntersection';
+import { EventGeofenceIntersection } from './event-geofence-intersection';
 import { EVENT_QUERIES } from './event.queries';
 
 @Injectable()
@@ -35,7 +35,7 @@ export class EventService {
     time,
     user: User
   ) {
-    const point = this.convertToPoint(latitude, longitude);
+    const point = this.convertToWKTFormattedPoint(latitude, longitude);
     let eventId = await this.eventRepo
       .createQueryBuilder()
       .insert()
@@ -62,16 +62,17 @@ export class EventService {
     /**
      * Find every user that created a geofence that overlaps with the location * of this newly created event
      */
-    let intersections = await this.findUserInformationByGeofenceIntersection(
-      //@ts-ignore
-      eventId
-    );
+    let intersections =
+      await this.getUserDetailsForUsersWithGeofencesIntersectingWithCreatedEvent(
+        //@ts-ignore
+        eventId
+      );
 
-    // make sure no user is emailed twice in case of overlapping geofences
-    intersections = this.filterUniqueEmails(intersections);
+    // make sure no user is emailed twice in case of multiple overlapping geofences
+    intersections = this.removeDuplicateEmails(intersections);
 
     // email each user that an event has been created in their area
-    intersections.forEach((user: eventGeofenceIntersection) => {
+    intersections.forEach((user: EventGeofenceIntersection) => {
       this.mailService.sendUserNotification(
         user.first_name,
         user.name,
@@ -86,9 +87,11 @@ export class EventService {
     return eventId;
   }
 
-  async findUserInformationByGeofenceIntersection(eventId: number) {
+  async getUserDetailsForUsersWithGeofencesIntersectingWithCreatedEvent(
+    eventId: number
+  ) {
     const userIds = await this.eventRepo.query(
-      EVENT_QUERIES.FIND_USER_INFORMATION_BY_GEOFENCE_INTERSECTION,
+      EVENT_QUERIES.GET_USER_DETAILS_FOR_USERS_WITH_GEOFENCES_INTERSECTING_WITH_CREATED_EVENT,
       [eventId]
     );
     return userIds;
@@ -115,14 +118,15 @@ export class EventService {
     delete event['latitude'];
     delete event['longitude'];
 
-    let affected = await this.eventRepo.update(eventId, event);
+    await this.eventRepo.update(eventId, event);
 
     if (body.latitude && body.longitude) {
       this.eventRepo
         .createQueryBuilder()
         .update()
         .set({
-          location: () => this.convertToPoint(body.latitude, body.longitude),
+          location: () =>
+            this.convertToWKTFormattedPoint(body.latitude, body.longitude),
         })
         .whereInIds(eventId)
         .execute()
@@ -199,9 +203,11 @@ export class EventService {
   }
 
   async getEventCollaborators(eventId: number): Promise<User[]> {
-    return await this.eventRepo.query(EVENT_QUERIES.EVENT_COLLABORATORS_QUERY, [
-      eventId,
-    ]);
+    return await this.eventRepo
+      .query(EVENT_QUERIES.EVENT_COLLABORATORS_QUERY, [eventId])
+      .catch((error) => {
+        this.logger.warn(error);
+      });
   }
 
   async getEventCollaboratorUserIds(eventId: number): Promise<number[]> {
@@ -237,30 +243,34 @@ export class EventService {
     }
   }
 
-  convertToPoint(lat, lng) {
+  convertToWKTFormattedPoint(lat, lng) {
     return `ST_GeomFromText('POINT(${lng} ${lat})')`;
   }
 
-  filterUniqueEmails(data: eventGeofenceIntersection[]) {
+  removeDuplicateEmails(userDataArray: EventGeofenceIntersection[]) {
     const uniqueEmails = new Set();
-    return data.filter((obj) => {
-      const isUnique = !uniqueEmails.has(obj.email_address);
+    return userDataArray.filter((userData) => {
+      const isUnique = !uniqueEmails.has(userData.email_address);
       if (isUnique) {
-        uniqueEmails.add(obj.email_address);
+        uniqueEmails.add(userData.email_address);
       }
       return isUnique;
     });
   }
 
-  extractUserId(arr) {
-    const result = [];
+  /**
+   * A helper function for extracting the userIds from this
+   * result set
+   */
+  extractUserId(resultSets) {
+    const userIds = [];
 
-    arr.forEach((obj) => {
-      if (obj.hasOwnProperty('user_id')) {
-        result.push(parseInt(obj.user_id));
+    resultSets.forEach((resultSet) => {
+      if (resultSet.hasOwnProperty('user_id')) {
+        userIds.push(parseInt(resultSet.user_id));
       }
     });
 
-    return result;
+    return userIds;
   }
 }

@@ -67,7 +67,7 @@ export class GeofenceController {
   @Get('/users/:userId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('consumer')
-  async findAllGeofencesByUserId(
+  async findAllofUsersGeofencesByUserId(
     @Param('userId') userId: string,
     @Req() req: Request
   ) {

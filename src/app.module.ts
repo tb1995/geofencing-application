@@ -43,6 +43,7 @@ import { AppLoggerMiddleware } from './middleware/app.logger.middlware';
   providers: [AppService],
 })
 export class AppModule implements NestModule {
+  // log all requests/responses coming in/going out of the application
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(AppLoggerMiddleware).forRoutes('*');
   }

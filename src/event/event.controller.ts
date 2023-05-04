@@ -110,7 +110,4 @@ export class EventController {
   getEventCollaboratos(@Param('id') eventId) {
     return this.eventService.getEventCollaborators(parseInt(eventId));
   }
-
-  @Get()
-  getUsersEvents() {}
 }
